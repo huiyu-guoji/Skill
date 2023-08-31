@@ -1,0 +1,80 @@
+filename = "DTDSM_v1_Corner.ocn"
+;design_dir = "/home/IC/Documents/analog_ic/simulation/inv/spectre/schematic/netlist/netlist" ;dir of netlist file
+design_dir = "/capsule/home/GuoJi/simulation/DTSDM_diff_v1/spectre/schematic/netlist/netlist" ;dir of netlist file
+modelfile_dir = "/capsule/home/GuoJi/Del_Sig/NEX110/spectre/NEX_wenning.scs" ;dir of process models
+;result_dir="/capsule/home/GuoJi/simulation/DTSDM_diff_v1/spectre/schematic";dir of result
+
+for(corner_sim 1 5 ;;loop for corner, corner_mos、corner_bjt、corner_res、corner_cap are different corners
+    if(corner_sim == 1 then corner_dir = "tt" corner_top = list(modelfile_dir "top_tt") )
+    if(corner_sim == 2 then corner_dir = "ss" corner_top = list(modelfile_dir "top_ss") )
+    if(corner_sim == 3 then corner_dir = "ff" corner_top = list(modelfile_dir "top_ff") )
+    if(corner_sim == 4 then corner_dir = "sf" corner_top = list(modelfile_dir "top_sf") )
+    if(corner_sim == 5 then corner_dir = "fs" corner_top = list(modelfile_dir "top_fs") )
+
+                for(temp_sim 1 5 ;;loop for temp
+                    if(temp_sim == 1 then temp = -40 temp_dir = "t=-40" s=s+1)
+                    if(temp_sim == 2 then temp = 27 temp_dir = "t=27" s=s+1)
+                    if(temp_sim == 3 then temp = 40 temp_dir = "t=40" s=s+1)
+                    if(temp_sim == 4 then temp = 75 temp_dir = "t=75" s=s+1)
+                    if(temp_sim == 5 then temp = 100 temp_dir = "t=125" s=s+1)
+
+                    results_dir = strcat(substring(design_dir 1 63) substring(filename 1 15) "_c" corner_dir "_t" temp_dir) ;save results dir
+                    simulator( 'spectre ) ;setup siulator
+                    design( design_dir ) ;netlist file
+                    resultsDir( results_dir ) ;save results dir
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;     add simulation script blow    ;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+                    modelFile( corner_top ) ;setup process models
+                    
+                    analysis('tran ?stop "10u"  ?errpreset "conservative"  ?tranNoise "Transient Noise"  
+                    ?trannoisemethod "default"  ?noisefmax "1G"  ?noisefmin ""  ?noiseseed "1"  
+                    ?noisescale ""  ?noisetmin ""  ?noiseupdate ""  ?noiseonoff ""  
+                    ?noiseinst ""  ?cmin "0.05f"  ) ;use the trans analysis
+                    
+                    desVar(	  "fc" 1M	)
+                    desVar(	  "w" 1u	)
+                    desVar(	  "cs2" 100f	)
+                    desVar(	  "cs" 8p	)
+                    desVar(	  "f" 600k	)
+                    desVar(	  "f1" 6M	)
+                    desVar(	  "idc" 120u	)
+                    desVar(	  "v" 250m	)
+                    desVar(	  "vcm" 750m	)
+                    desVar(	  "f2" "f1*19/65536"	)
+
+                    envOption(
+                        'analysisOrder  list("tran")
+                    ) ;setup simulation order
+
+                    ;option( ?categ 'turboOpts
+                    ;    'apsplus  t
+                    ;    'errorLevel  "Moderate"
+                    ;    'uniMode  "APS"
+                    ;) ;use aps
+
+                    saveOption( 'currents "all" ) ;save all current
+                    temp( temp ) ;setup temp
+                    run() ;start the simulation
+
+                   ; selectResult( 'tran ) ;select result for tran simulation
+                   ; VTEST = average(VT("/Y"))
+                   ; plot(getData("/A") getData("/Y") ?expr list(strcat("A_" corner_dir "_v" vdd_dir "_t" temp_dir) strcat("Y_" corner_dir "_v" vdd_dir "_t" temp_dir)) ) ;plot A & Y
+                   ; selectResult( 'dc ) ;select result for dc simulation
+                   ; plot(getData("/A") getData("/Y") ?expr list(strcat("A:" corner_dir "_v" vdd_dir "_t" temp_dir) strcat("Y:" corner_dir "_v" vdd_dir "_t" temp_dir)) ) ;plot A & Y
+
+                   plot( (VT("/VOUTP") - VT("/VOUTN")) ?expr strcat("corner_" corner_dir  "_t" temp_dir "VT("/VOUTP") - VT("/VOUTN")"))
+                   plot( (VT("/VOUTP2") - VT("/VOUTN2")) ?expr strcat("corner_" corner_dir  "_t" temp_dir "VT("/VOUTP2") - VT("/VOUTN2")"))
+                   plot( (VT("/QP") - VT("/QN")) ?expr strcat("corner_" corner_dir  "_t" temp_dir "VT("/QP") - VT("/QN")"))
+                   plot( (VT("/FBP") - VT("/FBN")) ?expr strcat("corner_" corner_dir  "_t" temp_dir "VT("/FBP") - VT("/FBN")"))
+                   plot( VT("/CLK1") ?expr strcat("corner_" corner_dir  "_t" temp_dir "VT("/CLK1")"))
+                   plot( VT("/CLK2") ?expr strcat("corner_" corner_dir  "_t" temp_dir "VT("/CLK2")"))
+                   plot( (VT("/VINp") - VT("/VINn")) ?expr strcat("corner_" corner_dir  "_t" temp_dir "VT("/VINp") - VT("/VINn")"))
+
+                   
+                ) ;;end loop for temp
+) ;;end loop for corner
+
+
